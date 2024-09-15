@@ -151,11 +151,3 @@ For production deployment, ensure you:
 3. Set up a reverse proxy like Nginx
 4. Use environment variables for sensitive information
 5. Set up proper database backups
-
-## Contributing
-
-Please read CONTRIBUTING.md for details on our code of conduct and the process for submitting pull requests.
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE.md file for details.
