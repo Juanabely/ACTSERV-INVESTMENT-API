@@ -1,8 +1,17 @@
-# accounts/serializers.py
 from rest_framework import serializers
 from django.contrib.auth.models import User
-from .models import InvestmentAccount, UserAccountPermission, Transaction
+from .models import InvestmentAccount, UserAccountPermission, Transaction, CustomUser
 
+
+class CustomUserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CustomUser
+        fields = ['id', 'username', 'email', 'role', 'password']
+        extra_kwargs = {'password': {'write_only': True, 'required': True}}
+
+    def create(self, validated_data):
+        user = CustomUser.objects.create_user(**validated_data)
+        return user
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
@@ -25,19 +34,25 @@ class UserAccountPermissionSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         username = validated_data.pop('username')
         try:
-            user = User.objects.get(username=username)
-        except User.DoesNotExist:
+            user = CustomUser.objects.get(username=username)
+        except CustomUser.DoesNotExist:
             raise serializers.ValidationError({"username": "User does not exist."})
         
         validated_data['user'] = user
         return super().create(validated_data)
 
 class InvestmentAccountSerializer(serializers.ModelSerializer):
-    user_permissions = UserAccountPermissionSerializer(many=True, read_only=True)
-
     class Meta:
         model = InvestmentAccount
-        fields = ['id', 'name', 'balance', 'user_permissions']
+        fields = ['id', 'name', 'balance']  
+
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        user = self.context.get('request').user
+        if user.is_staff:  # Only show user_permissions to staff users
+            user_permissions = UserAccountPermission.objects.filter(account=instance)
+            representation['user_permissions'] = UserAccountPermissionSerializer(user_permissions, many=True).data
+        return representation
 
 class TransactionSerializer(serializers.ModelSerializer):
     class Meta:

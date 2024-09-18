@@ -1,71 +1,99 @@
-# accounts/views.py
-from rest_framework import viewsets, permissions, status
+from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from django.contrib.auth.models import User
 from django.db.models import Sum
-from .models import InvestmentAccount, Transaction, UserAccountPermission
+from .models import InvestmentAccount, Transaction, UserAccountPermission, CustomUser
 from .serializers import (UserSerializer, InvestmentAccountSerializer, TransactionSerializer, 
-                          AdminUserSerializer, UserAccountPermissionSerializer)
-from .permissions import InvestmentAccountPermission, TransactionPermission
+                          AdminUserSerializer, UserAccountPermissionSerializer, CustomUserSerializer)
+from .permissions import (CanViewInvestmentAccount, CanAddInvestmentAccount, 
+                          CanChangeInvestmentAccount, CanDeleteInvestmentAccount, 
+                          TransactionPermission, IsAdminUser)
+from rest_framework.views import APIView
+from rest_framework.permissions import IsAuthenticated
 
-class UserViewSet(viewsets.ModelViewSet):
-    queryset = User.objects.all()
-    serializer_class = UserSerializer
-    permission_classes = [permissions.IsAdminUser]
+class CustomUserViewSet(viewsets.ModelViewSet):
+    queryset = CustomUser.objects.all()
+    serializer_class = CustomUserSerializer
+    permission_classes = [IsAdminUser]
 
-class InvestmentAccountViewSet(viewsets.ModelViewSet):
-    queryset = InvestmentAccount.objects.all()
-    serializer_class = InvestmentAccountSerializer
-    permission_classes = [permissions.IsAuthenticated, InvestmentAccountPermission, permissions.IsAdminUser]
+class InvestmentAccountListView(APIView):
+    permission_classes = [IsAuthenticated]
 
-    def get_queryset(self):
-        return InvestmentAccount.objects.filter(user_permissions__user=self.request.user)
+    def get(self, request):
+        if not CanViewInvestmentAccount().has_permission(request, self):
+            return Response({"detail": "Permission denied"}, status=status.HTTP_403_FORBIDDEN)
+        accounts = InvestmentAccount.objects.all()
+        serializer = InvestmentAccountSerializer(accounts, many=True, context={'request': request})
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def post(self, request):
+        if not CanAddInvestmentAccount().has_permission(request, self):
+            return Response({"detail": "Permission denied"}, status=status.HTTP_403_FORBIDDEN)
+        serializer = InvestmentAccountSerializer(data=request.data, context={'request': request})
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+class InvestmentAccountDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get_object(self, account_id):
+        try:
+            return InvestmentAccount.objects.get(id=account_id)
+        except InvestmentAccount.DoesNotExist:
+            return None
+
+    def get(self, request, account_id):
+        if not CanViewInvestmentAccount().has_permission(request, self):
+            return Response({"detail": "Permission denied"}, status=status.HTTP_403_FORBIDDEN)
+        account = self.get_object(account_id)
+        if account is None:
+            return Response({"detail": "Account not found."}, status=status.HTTP_404_NOT_FOUND)
+        serializer = InvestmentAccountSerializer(account, context={'request': request})
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def put(self, request, account_id):
+        if not CanChangeInvestmentAccount().has_permission(request, self):
+            return Response({"detail": "Permission denied"}, status=status.HTTP_403_FORBIDDEN)
+        account = self.get_object(account_id)
+        if account is None:
+            return Response({"detail": "Account not found."}, status=status.HTTP_404_NOT_FOUND)
+        serializer = InvestmentAccountSerializer(account, data=request.data, context={'request': request})
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, account_id):
+        if not CanDeleteInvestmentAccount().has_permission(request, self):
+            return Response({"detail": "Permission denied"}, status=status.HTTP_403_FORBIDDEN)
+        account = self.get_object(account_id)
+        if account is None:
+            return Response({"detail": "Account not found."}, status=status.HTTP_404_NOT_FOUND)
+        account.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 class TransactionViewSet(viewsets.ModelViewSet):
     queryset = Transaction.objects.all()
     serializer_class = TransactionSerializer
-    permission_classes = [permissions.IsAuthenticated, TransactionPermission]
+    permission_classes = [IsAuthenticated, TransactionPermission]
 
     def get_queryset(self):
         user = self.request.user
         user_permissions = UserAccountPermission.objects.filter(user=user)
-        
-        # Users with 'post' permission should not see any transactions
-        if user_permissions.filter(permission='post').exists() and not user_permissions.exclude(permission='post').exists():
-            return Transaction.objects.none()
-        
-        # For users with 'view', 'crud', or 'admin' permissions, show transactions for their accounts
         allowed_accounts = user_permissions.exclude(permission='post').values_list('account', flat=True)
         return Transaction.objects.filter(account__in=allowed_accounts)
-
-    def perform_create(self, serializer):
-        account = serializer.validated_data.get('account')
-        user_permission = UserAccountPermission.objects.filter(user=self.request.user, account=account).first()
-        
-        if user_permission and user_permission.permission in ['post', 'crud', 'admin']:
-            serializer.save()
-        else:
-            raise permissions.PermissionDenied("You don't have permission to create transactions for this account.")
-
-# accounts/views.py
 
 class UserAccountPermissionViewSet(viewsets.ModelViewSet):
     queryset = UserAccountPermission.objects.all()
     serializer_class = UserAccountPermissionSerializer
-    permission_classes = [permissions.IsAdminUser]
-
-    def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        self.perform_create(serializer)
-        headers = self.get_success_headers(serializer.data)
-        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+    permission_classes = [IsAdminUser]
 
 class AdminViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = User.objects.all()
+    queryset = CustomUser.objects.all()
     serializer_class = AdminUserSerializer
-    permission_classes = [permissions.IsAdminUser]
+    permission_classes = [IsAdminUser]
 
     @action(detail=True, methods=['get'])
     def user_transactions(self, request, pk=None):
