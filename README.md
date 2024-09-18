@@ -39,22 +39,23 @@ POST /api/token/
 
 The system uses a custom permission model with four levels:
 
-- `view`: Can view account details and transactions
-- `post`: Can create new transactions, but cannot view existing ones
-- `crud`: Can perform all operations on transactions
+- `can_view`: Can view account details and transactions
+- `can_create`: Can create new transactions, but cannot view existing ones
+- `can_change`: Can perform all operations on transactions
 - `admin`: Has full access, including user management and permission assignment
 
 Only admin users can create new users, investment accounts, and assign permissions.
+Mangers can add investment accounts but cannot delete them
 
 ## Endpoints
 
 ### Users
 
-- `GET /users/`: List all users (Admin only)
-- `POST /users/`: Create a new user (Admin only)
-- `GET /users/{id}/`: Retrieve a specific user
-- `PUT /users/{id}/`: Update a user
-- `DELETE /users/{id}/`: Delete a user (Admin only)
+- `GET /customusers/`: List all users (Admin only)
+- `POST /customusers/`: Create a new user (Admin only)
+- `GET /customusers/{id}/`: Retrieve a specific user
+- `PUT /customusers/{id}/`: Update a user
+- `DELETE /customusers/{id}/`: Delete a user (Admin only)
 
 ### Accounts
 
@@ -64,7 +65,7 @@ Only admin users can create new users, investment accounts, and assign permissio
 - `PUT /accounts/{id}/`: Update an account (Admin only)
 - `DELETE /accounts/{id}/`: Delete an account (Admin only)
 
-### Permissions
+### Permissions,and assigning users to accounts
 
 - `GET /permissions/`: List all permissions
 - `POST /permissions/`: Create a new permission (Admin only)
@@ -83,8 +84,11 @@ Only admin users can create new users, investment accounts, and assign permissio
 ## Models
 
 ### User
-- Standard Django User model
-
+- Abstracted the django base model and created a custom manager to handle creating users and super users
+-`username`-username - unique
+-`Email`-email - unique
+-`password` - password
+-`role` - has a default value of investor used for group creations and assigning permissions
 ### InvestmentAccount
 - `name`: CharField
 - `balance`: DecimalField
