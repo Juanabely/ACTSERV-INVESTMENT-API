@@ -40,8 +40,10 @@ The API uses token-based authentication. Include the token in the Authorization 
 (docs/authheader.png)
 
 ```
+
 Authorization: Token <your-token-here>
 ```
+![Screenshot 2024-09-19 135744](https://github.com/user-attachments/assets/f4871585-a489-4f80-84f7-ebd434a05263)
 
 To obtain a token, use the login endpoint:
 
@@ -52,6 +54,8 @@ POST /api-token-auth/
     "password": "your_password"
 }
 ```
+![Screenshot 2024-09-19 143925](https://github.com/user-attachments/assets/77ef9fd7-9b71-4fbe-8247-c16936548e57)
+
 
 ## Permissions
 
@@ -62,7 +66,7 @@ The system uses a custom permission model with four levels:
 - `can_change`: Can perform all operations on transactions
 - `admin`: Has full access, including user management and permission assignment
 
-Only admin users can create new users, investment accounts, and assign permissions.
+Only admin users can create new users and if you can_create_account perm, investment accounts, and assign permissions.
 Mangers can add investment accounts but cannot delete them
 
 ## Endpoints
