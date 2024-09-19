@@ -67,7 +67,7 @@ class InvestmentAccount(models.Model):
 
 class UserAccountPermission(models.Model):
     user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='account_permissions')
-    account = models.ForeignKey(InvestmentAccount, on_delete=models.CASCADE, related_name='user_permissions', default=None)
+    account = models.ForeignKey(InvestmentAccount, on_delete=models.CASCADE, related_name='user_permissions')
     
     VIEW = 'view'
     CRUD = 'crud'

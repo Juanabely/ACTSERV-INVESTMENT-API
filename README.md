@@ -1,7 +1,7 @@
 # Investment Account Management API
 
 ## Table of Contents
-1. [Introduction](#introduction)
+1. [Introduction && Flow](#introduction)
 2. [Authentication](#authentication)
 3. [Permissions](#permissions)
 4. [Endpoints](#endpoints)
@@ -13,13 +13,31 @@
 6. [Error Handling](#error-handling)
 7. [Testing](#testing)
 
-## Introduction
+## Introduction && Flow
 
 This API provides a comprehensive system for managing investment accounts, users, permissions, and transactions. It is designed with a robust permission system to ensure secure and controlled access to financial data.
+A user is created by an admin or superuser
+An admin is supposed to be authinticated by sending a post request to 'api_auth_token/' 
+{
+   username : abel,
+   password : Abel12345
+}
+After auth the admin can now add other users with there role field ,these new users have different permission levels according to there roles 
+Admins - can get all investment accounts ,with all there users and roles 
+         can create new accounts
+         can add users to accounts and assign permissions to them
+Managers - can get accounts
+          can create accounts
+          cannot get transactions
+Investors - Default role && has basic permissions    
+
+Once a user has been added to an investment account they can now perform different crud operations according to the permissions they were assigned to.
 
 ## Authentication
 
 The API uses token-based authentication. Include the token in the Authorization header of your requests:
+
+(docs/authheader.png)
 
 ```
 Authorization: Token <your-token-here>
@@ -28,7 +46,7 @@ Authorization: Token <your-token-here>
 To obtain a token, use the login endpoint:
 
 ```
-POST /api/token/
+POST /api-token-auth/
 {
     "username": "your_username",
     "password": "your_password"

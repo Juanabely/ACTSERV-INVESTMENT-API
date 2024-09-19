@@ -11,16 +11,15 @@ from .views import (
     InvestmentAccountDetailView,
 )
 
-router = routers.DefaultRouter()
+router = routers.SimpleRouter()
 router.register(r'customusers', CustomUserViewSet, basename='customusers')
 router.register(r'transactions', TransactionViewSet, basename='transactions')
 router.register(r'permissions', UserAccountPermissionViewSet, basename='permissions')
-router.register(r'admins', AdminViewSet, basename='admins')  # Changed from 'admin' to 'admins'
+router.register(r'admins', AdminViewSet, basename='admins')
 
 urlpatterns = [
     path('', include(router.urls)),
-    path('api-token-auth/', obtain_auth_token, name='api_token_auth'),
+   
     path('accounts/', InvestmentAccountListView.as_view()),
     path('accounts/<int:account_id>/', InvestmentAccountDetailView.as_view()),
-
 ]

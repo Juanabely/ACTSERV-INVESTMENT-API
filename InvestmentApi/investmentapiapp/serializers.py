@@ -12,17 +12,6 @@ class CustomUserSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         user = CustomUser.objects.create_user(**validated_data)
         return user
-class UserSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = User
-        fields = ['id', 'username', 'email', 'password']
-        extra_kwargs = {'password': {'write_only': True}}
-
-    def create(self, validated_data):
-        user = User.objects.create_user(**validated_data)
-        return user
-
-# accounts/serializers.py
 
 class UserAccountPermissionSerializer(serializers.ModelSerializer):
     username = serializers.CharField(write_only=True)
@@ -41,17 +30,26 @@ class UserAccountPermissionSerializer(serializers.ModelSerializer):
         validated_data['user'] = user
         return super().create(validated_data)
 
+class UserPermissionSerializer(serializers.ModelSerializer):
+    user_id = serializers.IntegerField(source='user.id')
+    username = serializers.CharField(source='user.username')
+
+    class Meta:
+        model = UserAccountPermission
+        fields = ['user_id', 'username', 'permission']
+
 class InvestmentAccountSerializer(serializers.ModelSerializer):
+    users = UserPermissionSerializer(source='user_permissions', many=True, read_only=True)
+
     class Meta:
         model = InvestmentAccount
-        fields = ['id', 'name', 'balance']  
+        fields = ['id', 'name', 'balance', 'users']
 
     def to_representation(self, instance):
         representation = super().to_representation(instance)
         user = self.context.get('request').user
-        if user.is_staff:  # Only show user_permissions to staff users
-            user_permissions = UserAccountPermission.objects.filter(account=instance)
-            representation['user_permissions'] = UserAccountPermissionSerializer(user_permissions, many=True).data
+        if not user.is_staff and not user.is_superuser:
+            representation.pop('users', None)
         return representation
 
 class TransactionSerializer(serializers.ModelSerializer):
@@ -80,10 +78,13 @@ class AdminUserSerializer(serializers.ModelSerializer):
     total_balance = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
 
     class Meta:
-        model = User
+        model = CustomUser
         fields = ['id', 'username', 'transactions', 'total_balance']
 
     def get_transactions(self, obj):
         account_ids = obj.account_permissions.values_list('account_id', flat=True)
         transactions = Transaction.objects.filter(account_id__in=account_ids)
-        return AdminTransactionSerializer(transactions, many=True).data
+        if transactions.exists():
+            return AdminTransactionSerializer(transactions, many=True).data
+        else:
+            return []  
